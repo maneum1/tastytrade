@@ -2,6 +2,10 @@ import os
 from datetime import datetime
 from decimal import Decimal
 
+
+from unittest.mock import AsyncMock, patch
+# from sqlalchemy.ext.asyncio import AsyncSession
+
 import pytest
 from anyio import sleep
 
@@ -32,6 +36,113 @@ def account_number() -> str:
 @pytest.fixture(scope="module")
 async def account(anyio_backend: str, session: Session, account_number: str):
     yield await Account.get(session, account_number)
+
+
+
+#@pytest.mark.asyncio
+@patch.object(Session, '_get', new_callable=AsyncMock)
+async def test_get_accounts_new(mock_get: AsyncMock, session: Session):
+    # Setup the mock response
+    mock_response = {
+        'items': [
+            {
+                'account': {
+                    'account-number': '5WT12345',
+                    'account-type-name': 'Roth IRA',
+                    'created-at': '2020-01-21T05:16:31.201+00:00',
+                    'day-trader-status': False,
+                    'ext-crm-id': 'test-ext-crm-id1',
+                    'external-id': 'A00000external-id',
+                    'funding-date': '2020-01-22',
+                    'futures-account-purpose': 'SPECULATING',
+                    'investment-objective': 'SPECULATION',
+                    'is-closed': False,
+                    'is-firm-error': False,
+                    'is-firm-proprietary': False,
+                    'is-foreign': False,
+                    'is-futures-approved': True,
+                    'margin-or-cash': 'Cash',
+                    'nickname': 'Nickname account 1',
+                    'opened-at': '2020-01-21T05:22:31.110+00:00',
+                    'regulatory-domain': 'USA',
+                    'suitable-options-level': 'Defined Risk Spreads Plus Naked'
+                    },
+                'authority-level': 'owner'
+            },
+            {
+                'account': {
+                    'account-number': '5WT67890',
+                    'account-type-name': 'Individual',
+                    'created-at': '2021-01-05T06:09:28.222+00:00',
+                    'day-trader-status': False,
+                    'ext-crm-id': 'test-ext-crm-id2',
+                    'external-id': 'A00001external-id',
+                    'funding-date': '2021-01-05',
+                    'futures-account-purpose': 'SPECULATING',
+                    'investment-objective': 'SPECULATION',
+                    'is-closed': True,
+                    'is-firm-error': False,
+                    'is-firm-proprietary': False,
+                    'is-foreign': False,
+                    'is-futures-approved': True,
+                    'margin-or-cash': 'Margin',
+                    'nickname': 'Individual',
+                    'opened-at': '2021-01-05T03:17:38.123+00:00',
+                    'regulatory-domain': 'USA',
+                    'suitable-options-level': 'No Restrictions'
+                },
+                'authority-level': 'owner'
+            }
+        ]
+    }
+
+    # Configure the mock to return the above response
+    mock_get.return_value = mock_response
+    
+    # Call the method under test
+    accounts = await Account.get(session)
+
+    # Assertions
+    assert accounts is not None  
+    assert isinstance(accounts, list)  
+    assert len(accounts) == 1  # Assuming include_closed is False, only open accounts should be included
+    assert accounts[0].account_number == "5WT12345"  # Validate the expected account's number
+
+
+#@pytest.mark.asyncio
+@patch.object(Session, '_get', new_callable=AsyncMock)
+async def test_get_specific_account(mock_get: AsyncMock, session: Session):
+    # Setup mock for a specific account retrieval
+    account_number = "5WT12345"
+    # mock_get.return_value = {"account": {"account-number": account_number, "is-closed": False}}
+    mock_get.return_value ={
+                    'account-number': account_number,
+                    'account-type-name': 'Roth IRA',
+                    'created-at': '2020-01-21T05:16:31.201+00:00',
+                    'day-trader-status': False,
+                    'ext-crm-id': 'test-ext-crm-id1',
+                    'external-id': 'A00000external-id',
+                    'funding-date': '2020-01-22',
+                    'futures-account-purpose': 'SPECULATING',
+                    'investment-objective': 'SPECULATION',
+                    'is-closed': False,
+                    'is-firm-error': False,
+                    'is-firm-proprietary': False,
+                    'is-foreign': False,
+                    'is-futures-approved': True,
+                    'margin-or-cash': 'Cash',
+                    'nickname': 'Nickname account 1',
+                    'opened-at': '2020-01-21T05:22:31.110+00:00',
+                    'regulatory-domain': 'USA',
+                    'suitable-options-level': 'Defined Risk Spreads Plus Naked'
+                }
+    
+    account = await Account.get(session, account_number=account_number)
+    
+    # Assertions
+    assert account is not None
+    assert account.account_number == account_number
+
 
 
 async def test_get_account(account: Account):
